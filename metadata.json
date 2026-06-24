@@ -1,0 +1,6 @@
+{
+  "name": "CrisisSense AI",
+  "description": "A premium dark emergency-response app featuring instant alerts, GPS capture, nearest hospital identification, and community witness reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

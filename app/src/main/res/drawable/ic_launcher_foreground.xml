@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Emergency Pulse Ring 1 (Faded Red) -->
+    <path
+        android:fillColor="#15FF3B4A"
+        android:pathData="M54,54m-38,0a38,38 0,1 1,76 0a38,38 0,1 1,-76 0" />
+
+    <!-- Outer Emergency Pulse Ring 2 (Semi-faded Red) -->
+    <path
+        android:fillColor="#33FF3B4A"
+        android:pathData="M54,54m-28,0a28,28 0,1 1,56 0a28,28 0,1 1,-56 0" />
+
+    <!-- Central Alert Shield Base (Solid Red) -->
+    <path
+        android:fillColor="#FF3B4A"
+        android:pathData="M54,32C42,32 40,36 40,36C40,48 48,58 54,64C60,58 68,48 68,36C68,36 66,32 54,32Z" />
+
+    <!-- High-tech Accent Core (Accent Teal Lightning/Alert Symbol) -->
+    <path
+        android:fillColor="#27E1C1"
+        android:pathData="M54,38L47,49h6v9l7,-11h-6Z" />
+
+</vector>
