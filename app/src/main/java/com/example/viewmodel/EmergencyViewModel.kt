@@ -23,10 +23,37 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.example.patent.*
 
 class EmergencyViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = EmergencyRepository()
+
+    private val vibrator: Vibrator? by lazy {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getApplication<Application>().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getApplication<Application>().getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // Patent Engines
+    private val confidenceEngine: IConfidenceEngine = ConfidenceEngineImpl()
+    private val witnessVerificationEngine: IWitnessVerificationEngine = WitnessVerificationEngineImpl()
+    private val smartDispatchEngine: ISmartDispatchEngine = SmartDispatchEngineImpl()
+    private val offlineRelayEngine: IOfflineRelayEngine = OfflineRelayEngineImpl()
+
+    // Standarized Incident Intelligence Object
+    private val _activeIncident = MutableStateFlow<Incident?>(null)
+    val activeIncident = _activeIncident.asStateFlow()
+
+    val syncStatusMessage: StateFlow<String?> = offlineRelayEngine.syncStatusMessage
 
     // Exposed flows from repository
     val contacts: StateFlow<List<Contact>> = repository.contacts
@@ -94,10 +121,37 @@ class EmergencyViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun toggleConnectivity() {
         _isWeakConnectivity.value = !_isWeakConnectivity.value
+        val isWeak = _isWeakConnectivity.value
+        val incident = _activeIncident.value
+        if (incident != null) {
+            if (isWeak) {
+                val updated = incident.copy(
+                    networkMode = NetworkMode.OFFLINE_SMS,
+                    dispatchStatus = "Queued"
+                )
+                _activeIncident.value = updated
+                offlineRelayEngine.queueOfflineIncident(updated)
+            } else {
+                // Connectivity returned! Sync offline queue with Firebase simulation
+                offlineRelayEngine.triggerConnectivityReturn()
+                val updated = incident.copy(
+                    networkMode = NetworkMode.CLOUD,
+                    dispatchStatus = "Delivered"
+                )
+                _activeIncident.value = updated
+                
+                viewModelScope.launch {
+                    delay(3500)
+                    offlineRelayEngine.clearSyncStatus()
+                }
+            }
+        }
     }
 
     fun setWeakConnectivity(weak: Boolean) {
-        _isWeakConnectivity.value = weak
+        if (_isWeakConnectivity.value != weak) {
+            toggleConnectivity()
+        }
     }
 
     val sosWorkflowSteps = listOf(
@@ -220,13 +274,55 @@ class EmergencyViewModel(application: Application) : AndroidViewModel(applicatio
             _sosStep.value = -1 // reset overlay
             _emergencyTriggered.value = true
             
-            // Add to history
+            // 1. AI Emergency Confidence Engine (ECE) Evaluation
+            val isWeak = _isWeakConnectivity.value
+            val eval = confidenceEngine.evaluateEmergency(
+                emergencyType = "Medical",
+                gpsAccuracyMeters = if (isWeak) 45f else 4.2f,
+                userDescription = "Emergency SOS Hold triggered.",
+                imageAnalysisLabel = _uploadedPhotoLabel.value,
+                voiceTranscription = _voiceTranscription.value,
+                nearbyWitnessCount = repository.witnessReports.value.filter { it.incidentType == "Medical" }.size,
+                isFallDetected = false
+            )
+
+            // 2. Smart Dispatch Decision Engine Routing
+            val dispatchTargets = smartDispatchEngine.resolveDispatchRoute("Medical")
+            val dispatchRouteNames = dispatchTargets.map { it.displayName }
+
+            // 3. Adaptive Offline Emergency Relay Activation
+            val offlineActive = offlineRelayEngine.isOfflineActive(isWeak)
+            val networkMode = if (offlineActive) NetworkMode.OFFLINE_SMS else NetworkMode.CLOUD
+            val initialDispatchStatus = if (offlineActive) "Queued" else "Delivered"
+
+            // 4. Create Standardized Incident Object
+            val incident = Incident(
+                emergencyType = "Medical",
+                confidenceScore = eval.confidenceScore,
+                priority = eval.priorityLevel,
+                aiSummary = eval.aiSummary,
+                confidenceExplanation = eval.explanation,
+                witnessCount = 1,
+                verificationStatus = "Self Declared",
+                verificationConfidence = 100,
+                dispatchRoute = dispatchRouteNames,
+                dispatchStatus = initialDispatchStatus,
+                networkMode = networkMode
+            )
+            _activeIncident.value = incident
+
+            if (offlineActive) {
+                offlineRelayEngine.queueOfflineIncident(incident)
+            }
+
+            // 5. Log Custom History Entry
             val newAlert = HistoryEntry(
+                id = incident.id,
                 type = "Self Emergency",
-                title = "SOS Emergency Alert Initiated",
+                title = "SOS Emergency Initiated (${incident.id})",
                 location = "Duvvada, Visakhapatnam",
-                status = "En Route",
-                details = "User triggered emergency hold. Location captured and dispatched to guardians.",
+                status = if (offlineActive) "Queued" else "En Route",
+                details = "${eval.aiSummary}\n\nPriority: ${eval.priorityLevel.name}\nConfidence: ${eval.confidenceScore}%\n\n${eval.explanation}",
                 hospital = "Visakha Hospital, Duvvada, Visakhapatnam",
                 eta = "~3:58 mins",
                 incidentType = "Medical"
@@ -300,7 +396,7 @@ class EmergencyViewModel(application: Application) : AndroidViewModel(applicatio
         
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
-            while (_countdownSeconds.value > 0) {
+            while (_countdownSeconds.value > 0 && !_callCancelled.value) {
                 delay(1000L)
                 if (!_callCancelled.value) {
                     _countdownSeconds.value -= 1
@@ -389,7 +485,78 @@ class EmergencyViewModel(application: Application) : AndroidViewModel(applicatio
             isVerified = true,
             reportsNearby = repository.getWitnessReportCount() + 1
         )
-        repository.addWitnessReport(newReport)
+
+        // 1. Community Witness Verification Engine (CWVE)
+        val verifyResult = witnessVerificationEngine.processAndVerify(
+            newReport,
+            repository.witnessReports.value
+        )
+
+        // 2. AI Emergency Confidence Engine (ECE) Evaluation
+        val isWeak = _isWeakConnectivity.value
+        val eval = confidenceEngine.evaluateEmergency(
+            emergencyType = type,
+            gpsAccuracyMeters = if (isWeak) 85f else 12f,
+            userDescription = description,
+            imageAnalysisLabel = _uploadedPhotoLabel.value,
+            voiceTranscription = _voiceTranscription.value,
+            nearbyWitnessCount = verifyResult.witnessCount - 1,
+            isFallDetected = false
+        )
+
+        // 3. Smart Dispatch Decision Engine Routing
+        val dispatchTargets = smartDispatchEngine.resolveDispatchRoute(type)
+        val dispatchRouteNames = dispatchTargets.map { it.displayName }
+
+        // 4. Adaptive Offline Emergency Relay Activation
+        val offlineActive = offlineRelayEngine.isOfflineActive(isWeak)
+        val networkMode = if (offlineActive) NetworkMode.OFFLINE_SMS else NetworkMode.CLOUD
+        val initialDispatchStatus = if (offlineActive) "Queued" else "Delivered"
+
+        // 5. Standardized Incident Object
+        val incident = Incident(
+            emergencyType = type,
+            confidenceScore = eval.confidenceScore,
+            priority = eval.priorityLevel,
+            aiSummary = eval.aiSummary,
+            confidenceExplanation = eval.explanation,
+            witnessCount = verifyResult.witnessCount,
+            verificationStatus = if (verifyResult.isMerged) "Community Verified" else "Single Report",
+            verificationConfidence = verifyResult.verificationConfidence,
+            dispatchRoute = dispatchRouteNames,
+            dispatchStatus = initialDispatchStatus,
+            networkMode = networkMode
+        )
+        _activeIncident.value = incident
+
+        if (offlineActive) {
+            offlineRelayEngine.queueOfflineIncident(incident)
+        }
+
+        // 6. Log Custom History Entry via Repository
+        val customHistoryEntry = HistoryEntry(
+            id = incident.id,
+            type = "Witness Report",
+            title = "Reported $type (${incident.id})",
+            location = newReport.location,
+            status = if (offlineActive) "Queued" else if (verifyResult.isMerged) "Verified" else "Sent",
+            details = "${eval.aiSummary}\n\nVerification: ${incident.verificationStatus} (${verifyResult.witnessCount} Witnesses)\nPriority: ${eval.priorityLevel.name}\nConfidence Score: ${eval.confidenceScore}%\n\nRouting Path:\n${dispatchRouteNames.joinToString("\n")}",
+            hospital = if (type == "Fire") "Duvvada Fire Station" else "Visakha Hospital, Duvvada",
+            eta = when (type) {
+                "Fire" -> "3–5 mins"
+                "Accident" -> "4 mins"
+                else -> "~3:58 mins"
+            },
+            incidentType = type
+        )
+
+        repository.addWitnessReport(
+            report = newReport.copy(
+                isVerified = verifyResult.isMerged || verifyResult.witnessCount > 1,
+                reportsNearby = verifyResult.witnessCount
+            ),
+            customHistoryEntry = customHistoryEntry
+        )
         
         // Setup Witness Confirmation Navigation
         _selectedIncidentTypeForConfirmation.value = type
@@ -435,14 +602,6 @@ class EmergencyViewModel(application: Application) : AndroidViewModel(applicatio
     // Local Haptic Feedback service
     private fun triggerVibration(durationMs: Long) {
         try {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = getApplication<Application>().getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                vibratorManager?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                getApplication<Application>().getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            }
-            
             vibrator?.let {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     it.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))

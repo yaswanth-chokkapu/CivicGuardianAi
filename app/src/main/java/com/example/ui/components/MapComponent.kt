@@ -99,16 +99,18 @@ fun CrisisSenseMap(
             val strokeWidth = 1f * scale
 
             // Vertical grid lines
-            var x = centerX % gridSize
-            while (x < width) {
-                drawLine(gridColor, Offset(x, 0f), Offset(x, height), strokeWidth)
-                x += gridSize
-            }
-            // Horizontal grid lines
-            var y = centerY % gridSize
-            while (y < height) {
-                drawLine(gridColor, Offset(0f, y), Offset(width, y), strokeWidth)
-                y += gridSize
+            if (gridSize > 5f) {
+                var x = centerX % gridSize
+                while (x < width) {
+                    drawLine(gridColor, Offset(x, 0f), Offset(x, height), strokeWidth)
+                    x += gridSize
+                }
+                // Horizontal grid lines
+                var y = centerY % gridSize
+                while (y < height) {
+                    drawLine(gridColor, Offset(0f, y), Offset(width, y), strokeWidth)
+                    y += gridSize
+                }
             }
 
             // Draw background features (water body / cached coastline boundary)

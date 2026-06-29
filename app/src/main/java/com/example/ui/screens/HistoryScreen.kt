@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.Divider
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -164,7 +164,7 @@ fun TimelineItem(entry: HistoryEntry) {
             )
 
             // Dynamic connector line extending downwards
-            Divider(
+            VerticalDivider(
                 color = Color(0xFF1B1B2B),
                 modifier = Modifier
                     .fillMaxHeight()

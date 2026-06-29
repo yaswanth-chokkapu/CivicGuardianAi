@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.LocalFireDepartment
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.CrisisSenseMap
 import com.example.ui.theme.*
 import com.example.viewmodel.EmergencyViewModel
+import com.example.patent.*
 
 @Composable
 fun ConfirmationScreen(
@@ -40,6 +42,9 @@ fun ConfirmationScreen(
     val selectedHospital by viewModel.selectedHospital.collectAsState()
     val selectedIncidentType by viewModel.selectedIncidentTypeForConfirmation.collectAsState()
     val isWeakConnectivity by viewModel.isWeakConnectivity.collectAsState()
+    
+    val activeIncident by viewModel.activeIncident.collectAsState()
+    val syncStatusMessage by viewModel.syncStatusMessage.collectAsState()
 
     // Configuration depending on the type of emergency (Medical, Fire, Accident)
     val activeEta = when (selectedIncidentType) {
@@ -119,6 +124,42 @@ fun ConfirmationScreen(
             // Header spacer
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Floating Adaptive Sync Banner
+            syncStatusMessage?.let { msg ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (msg.contains("Activated", ignoreCase = true)) Color(0x26FFB300) else Color(0x1A27E1C1))
+                        .border(
+                            1.dp,
+                            if (msg.contains("Activated", ignoreCase = true)) Color(0xFFFFB300).copy(alpha = 0.5f) else AccentTeal.copy(alpha = 0.5f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(14.dp)
+                        .testTag("sync_status_banner")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (msg.contains("Activated", ignoreCase = true)) Icons.Filled.WifiOff else Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = if (msg.contains("Activated", ignoreCase = true)) Color(0xFFFFB300) else AccentTeal,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = msg,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
             // Large Green Check Icon & Help Confirmation
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -170,7 +211,7 @@ fun ConfirmationScreen(
                 StatusCard(
                     title = "Alert Status",
                     value = "Sent ✅",
-                    icon = Icons.Filled.Send,
+                    icon = Icons.AutoMirrored.Filled.Send,
                     iconColor = AccentTeal,
                     modifier = Modifier.weight(1f)
                 )
@@ -208,6 +249,147 @@ fun ConfirmationScreen(
                     iconColor = PrimaryRed,
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Patent Features Details Card
+            Text(
+                text = "AI PATENT INTELLIGENCE STATS",
+                color = Color.Gray,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(GlassBg)
+                    .border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+                    .testTag("patent_stats_card")
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // Row 1: Confidence score & priority level
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Confidence (ECE)",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "${activeIncident?.confidenceScore ?: 97}% Match",
+                                color = SuccessGreen,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Priority Level",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = activeIncident?.priority?.name ?: "CRITICAL",
+                                color = if ((activeIncident?.priority ?: PriorityLevel.CRITICAL) == PriorityLevel.CRITICAL) PrimaryRed else AccentTeal,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = GlassBorder, thickness = 1.dp)
+
+                    // Row 2: Verification Status & Witness count
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Verification (CWVE)",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = activeIncident?.verificationStatus ?: "Community Verified",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Witness Count",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "${activeIncident?.witnessCount ?: 3} Witnesses",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = GlassBorder, thickness = 1.dp)
+
+                    // Row 3: Dispatch mode & status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1.5f)) {
+                            Text(
+                                text = "Smart Dispatch Route",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = activeIncident?.dispatchRoute?.joinToString(" + ") ?: bottomAlertMessage.substringBefore(" have"),
+                                color = AccentTeal,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Dispatch Mode",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = if (activeIncident?.networkMode == NetworkMode.OFFLINE_SMS) "Offline SMS ⏳" else "Cloud Dispatch ✅",
+                                color = if (activeIncident?.networkMode == NetworkMode.OFFLINE_SMS) Color(0xFFFFB300) else SuccessGreen,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -333,7 +515,7 @@ fun ConfirmationScreen(
                         }
                     }
 
-                    Divider(color = GlassBorder, thickness = 1.dp)
+                    HorizontalDivider(color = GlassBorder, thickness = 1.dp)
 
                     // User Location Coordinates
                     Row(verticalAlignment = Alignment.Top) {
@@ -488,7 +670,7 @@ fun ConfirmationScreen(
                             .padding(bottom = 8.dp)
                     )
 
-                    Divider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
 
                     Text(
                         text = "Emergency services are being contacted...",

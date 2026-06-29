@@ -130,12 +130,12 @@ class EmergencyRepository {
     }
 
     // WITNESS REPORTS CRUD
-    fun addWitnessReport(report: WitnessReport) {
+    fun addWitnessReport(report: WitnessReport, customHistoryEntry: HistoryEntry? = null) {
         // Add the report to witnessReports list
         _witnessReports.update { currentList -> listOf(report) + currentList }
 
         // Also record this in the general history timeline as a submission
-        val historyEntry = HistoryEntry(
+        val historyEntry = customHistoryEntry ?: HistoryEntry(
             type = "Witness Report",
             title = "Reported ${report.incidentType} (${report.riskLevel})",
             location = report.location,

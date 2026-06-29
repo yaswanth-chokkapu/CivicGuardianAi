@@ -101,7 +101,7 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("setting_switch_location")
                     )
 
-                    Divider(color = GlassBorder, thickness = 1.dp)
+                    HorizontalDivider(color = GlassBorder, thickness = 1.dp)
 
                     // Notification Switch Item
                     SettingsSwitchRow(
@@ -114,7 +114,7 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("setting_switch_notifications")
                     )
 
-                    Divider(color = GlassBorder, thickness = 1.dp)
+                    HorizontalDivider(color = GlassBorder, thickness = 1.dp)
 
                     // SMS Fallback Switch Item
                     SettingsSwitchRow(
@@ -157,7 +157,7 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("setting_nav_contacts")
                     )
 
-                    Divider(color = GlassBorder, thickness = 1.dp)
+                    HorizontalDivider(color = GlassBorder, thickness = 1.dp)
 
                     SettingsNavigationRow(
                         title = "Test SOS SMS Fallback Alert",
@@ -243,7 +243,7 @@ fun SettingsScreen(
                         exit = shrinkVertically() + fadeOut()
                     ) {
                         Column(modifier = Modifier.padding(top = 12.dp)) {
-                            Divider(color = GlassBorder, thickness = 1.dp, modifier = Modifier.padding(bottom = 12.dp))
+                            HorizontalDivider(color = GlassBorder, thickness = 1.dp, modifier = Modifier.padding(bottom = 12.dp))
                             Text(
                                 text = "CrisisSense AI is designed under strict Privacy-by-Default architecture:\n\n" +
                                         "1. Offline Processing First: Location analysis and route tracing occur locally on your device.\n\n" +
